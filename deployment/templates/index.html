@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeCommentator NLP - Automated Documentation Generator</title>
+    <meta name="description" content="Generate meaningful code documentation automatically using NLP and deep learning models.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f0f1a;
+            --bg-secondary: #1a1a2e;
+            --bg-card: #16213e;
+            --accent: #6c63ff;
+            --accent-hover: #7c75ff;
+            --text-primary: #e8e8f0;
+            --text-secondary: #a0a0b8;
+            --border: #2a2a4a;
+            --success: #4ade80;
+            --gradient-1: linear-gradient(135deg, #6c63ff 0%, #e056a0 100%);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            padding: 3rem 2rem 2rem;
+            background: linear-gradient(180deg, rgba(108, 99, 255, 0.1) 0%, transparent 100%);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 2rem 3rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            backdrop-filter: blur(10px);
+            transition: border-color 0.3s;
+        }
+
+        .card:hover { border-color: var(--accent); }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 250px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.2rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus { border-color: var(--accent); }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .model-select {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .model-option {
+            padding: 0.6rem 1.2rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+        }
+
+        .model-option:hover,
+        .model-option.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(108, 99, 255, 0.1);
+        }
+
+        .model-option input { display: none; }
+
+        .btn-generate {
+            padding: 0.8rem 2.5rem;
+            background: var(--gradient-1);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.3s;
+            margin-left: auto;
+        }
+
+        .btn-generate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(108, 99, 255, 0.35);
+        }
+
+        .output-area {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            min-height: 120px;
+            color: var(--success);
+        }
+
+        .output-area.empty { color: var(--text-secondary); font-style: italic; }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            background: rgba(108, 99, 255, 0.15);
+            color: var(--accent);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-left: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🤖 CodeCommentator NLP</h1>
+        <p>Automated Code Documentation Generator powered by Deep Learning</p>
+    </div>
+
+    <div class="container">
+        <form method="post" action="/generate">
+            <div class="card">
+                <div class="card-title">📝 Paste Your Code</div>
+                <textarea name="code" placeholder="def calculate_average(numbers):&#10;    total = sum(numbers)&#10;    return total / len(numbers)">{{ code or '' }}</textarea>
+
+                <div class="controls">
+                    <div class="model-select">
+                        <label class="model-option {% if not model_type or model_type == 'codebert' %}active{% endif %}">
+                            <input type="radio" name="model_type" value="codebert"
+                                   {% if not model_type or model_type == 'codebert' %}checked{% endif %}>
+                            CodeBERT <span class="badge">Transformer</span>
+                        </label>
+                        <label class="model-option {% if model_type == 'seq2seq' %}active{% endif %}">
+                            <input type="radio" name="model_type" value="seq2seq"
+                                   {% if model_type == 'seq2seq' %}checked{% endif %}>
+                            Seq2Seq <span class="badge">LSTM</span>
+                        </label>
+                    </div>
+                    <button type="submit" class="btn-generate">Generate Documentation →</button>
+                </div>
+            </div>
+        </form>
+
+        <div class="card">
+            <div class="card-title">📄 Generated Documentation</div>
+            <div class="output-area {% if not documentation %}empty{% endif %}">{{ documentation or 'Generated documentation will appear here...' }}</div>
+        </div>
+    </div>
+
+    <script>
+        document.querySelectorAll('.model-option input').forEach(radio => {
+            radio.addEventListener('change', () => {
+                document.querySelectorAll('.model-option').forEach(opt => opt.classList.remove('active'));
+                radio.parentElement.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>
