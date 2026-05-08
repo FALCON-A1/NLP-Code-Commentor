@@ -118,8 +118,17 @@ def main():
     parser.add_argument("--checkpoint_dir", type=str, default="checkpoints")
     args = parser.parse_args()
 
+    # GPU detection
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logger.info(f"Using device: {device}")
+    n_gpus = torch.cuda.device_count()
+    if torch.cuda.is_available():
+        logger.info(f"Found {n_gpus} GPU(s):")
+        for i in range(n_gpus):
+            name = torch.cuda.get_device_name(i)
+            mem = torch.cuda.get_device_properties(i).total_mem / 1024**3
+            logger.info(f"  GPU {i}: {name} ({mem:.1f} GB)")
+    else:
+        logger.info("No GPU found, using CPU")
 
     # Build vocabularies
     logger.info("Building vocabularies...")
@@ -152,6 +161,11 @@ def main():
         n_layers=args.n_layers,
         dropout=args.dropout,
     )
+
+    # Multi-GPU: wrap with DataParallel if more than 1 GPU
+    if n_gpus > 1:
+        logger.info(f"Using DataParallel across {n_gpus} GPUs")
+        model = nn.DataParallel(model)
 
     # Training setup with weight decay and label smoothing
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -190,9 +204,11 @@ def main():
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             patience_counter = 0
+            # Save unwrapped model (without DataParallel wrapper) for portability
+            model_to_save = model.module if hasattr(model, 'module') else model
             torch.save({
                 'epoch': epoch,
-                'model_state_dict': model.state_dict(),
+                'model_state_dict': model_to_save.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'val_loss': val_loss,
                 'src_vocab': src_vocab,
