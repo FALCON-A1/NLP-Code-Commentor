@@ -22,7 +22,7 @@ import argparse
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 from pathlib import Path
 
 # Add project root to path
@@ -66,7 +66,7 @@ def train_epoch(model, loader, optimizer, criterion, clip, device, teacher_forci
         optimizer.zero_grad(set_to_none=True)  # Faster than zero_grad()
 
         # Mixed precision forward pass
-        with autocast(enabled=use_amp):
+        with autocast('cuda', enabled=use_amp):
             output = model(src, tgt, teacher_forcing)
             output = output[:, 1:, :].reshape(-1, output.shape[-1])
             tgt = tgt[:, 1:].reshape(-1)
@@ -95,7 +95,7 @@ def evaluate(model, loader, criterion, device, use_amp):
     with torch.no_grad():
         for src, tgt in loader:
             src, tgt = src.to(device, non_blocking=True), tgt.to(device, non_blocking=True)
-            with autocast(enabled=use_amp):
+            with autocast('cuda', enabled=use_amp):
                 output = model(src, tgt, teacher_forcing_ratio=0)
                 output = output[:, 1:, :].reshape(-1, output.shape[-1])
                 tgt = tgt[:, 1:].reshape(-1)
@@ -200,7 +200,7 @@ def main():
     )
 
     # AMP gradient scaler (only active when use_amp=True)
-    scaler = GradScaler(enabled=use_amp)
+    scaler = GradScaler('cuda', enabled=use_amp)
 
     # Checkpoint dir
     os.makedirs(args.checkpoint_dir, exist_ok=True)

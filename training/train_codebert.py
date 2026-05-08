@@ -20,7 +20,7 @@ import argparse
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 from torch.utils.data import DataLoader
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -44,7 +44,7 @@ def train_epoch(model, loader, optimizer, scheduler, device, grad_accum_steps, s
         labels = batch["labels"].to(device, non_blocking=True)
 
         # Mixed precision forward pass
-        with autocast(enabled=use_amp):
+        with autocast('cuda', enabled=use_amp):
             outputs = model(input_ids, attention_mask, labels)
             loss = outputs["loss"]
             # Handle DataParallel (loss is averaged per GPU, need mean across GPUs)
@@ -82,7 +82,7 @@ def evaluate(model, loader, device, use_amp):
             attention_mask = batch["attention_mask"].to(device, non_blocking=True)
             labels = batch["labels"].to(device, non_blocking=True)
 
-            with autocast(enabled=use_amp):
+            with autocast('cuda', enabled=use_amp):
                 outputs = model(input_ids, attention_mask, labels)
                 loss = outputs["loss"]
                 if loss.dim() > 0:
@@ -175,7 +175,7 @@ def main():
     scheduler = OneCycleLR(optimizer, max_lr=args.lr, total_steps=total_steps)
 
     # AMP gradient scaler
-    scaler = GradScaler(enabled=use_amp)
+    scaler = GradScaler('cuda', enabled=use_amp)
 
     # Training with early stopping
     os.makedirs(args.checkpoint_dir, exist_ok=True)
