@@ -56,33 +56,36 @@ def build_vocabularies(train_path: str, min_freq: int = 2):
     return src_vocab, tgt_vocab
 
 
-def train_epoch(model, loader, optimizer, criterion, clip, device, teacher_forcing, scaler, use_amp):
-    """Run one training epoch with AMP support."""
+def train_epoch(model, loader, optimizer, criterion, clip, device, teacher_forcing, scaler, use_amp, grad_accum=1):
+    """Run one training epoch with AMP and gradient accumulation."""
     model.train()
     epoch_loss = 0
+    optimizer.zero_grad(set_to_none=True)
 
     for batch_idx, (src, tgt) in enumerate(loader):
         src, tgt = src.to(device, non_blocking=True), tgt.to(device, non_blocking=True)
-        optimizer.zero_grad(set_to_none=True)  # Faster than zero_grad()
 
         # Mixed precision forward pass
         with autocast('cuda', enabled=use_amp):
             output = model(src, tgt, teacher_forcing)
             output = output[:, 1:, :].reshape(-1, output.shape[-1])
             tgt = tgt[:, 1:].reshape(-1)
-            loss = criterion(output, tgt)
+            loss = criterion(output, tgt) / grad_accum
 
         # Scaled backward pass
         scaler.scale(loss).backward()
-        scaler.unscale_(optimizer)
-        nn.utils.clip_grad_norm_(model.parameters(), clip)
-        scaler.step(optimizer)
-        scaler.update()
 
-        epoch_loss += loss.item()
+        if (batch_idx + 1) % grad_accum == 0:
+            scaler.unscale_(optimizer)
+            nn.utils.clip_grad_norm_(model.parameters(), clip)
+            scaler.step(optimizer)
+            scaler.update()
+            optimizer.zero_grad(set_to_none=True)
 
-        if (batch_idx + 1) % 50 == 0:
-            logger.info(f"  Batch {batch_idx+1}/{len(loader)} - Loss: {loss.item():.4f}")
+        epoch_loss += loss.item() * grad_accum
+
+        if (batch_idx + 1) % 200 == 0:
+            logger.info(f"  Batch {batch_idx+1}/{len(loader)} - Loss: {loss.item() * grad_accum:.4f}")
 
     return epoch_loss / len(loader)
 
@@ -110,7 +113,8 @@ def main():
     parser.add_argument("--train_data", type=str, default="data/processed/train.json")
     parser.add_argument("--val_data", type=str, default="data/processed/validation.json")
     parser.add_argument("--epochs", type=int, default=30)
-    parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--grad_accum", type=int, default=8)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--hidden_dim", type=int, default=512)
     parser.add_argument("--embed_dim", type=int, default=512)
@@ -214,7 +218,7 @@ def main():
         tf_ratio = max(0.1, args.teacher_forcing * (0.95 ** epoch))
 
         train_loss = train_epoch(model, train_loader, optimizer, criterion,
-                                  args.clip, device, tf_ratio, scaler, use_amp)
+                                  args.clip, device, tf_ratio, scaler, use_amp, args.grad_accum)
         val_loss = evaluate(model, val_loader, criterion, device, use_amp)
         scheduler.step(val_loss)
 
