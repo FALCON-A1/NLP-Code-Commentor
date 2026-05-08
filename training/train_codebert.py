@@ -97,7 +97,7 @@ def main():
     parser.add_argument("--train_data", type=str, default="data/processed/train.json")
     parser.add_argument("--val_data", type=str, default="data/processed/validation.json")
     parser.add_argument("--epochs", type=int, default=10)
-    parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--lr", type=float, default=2e-5)
     parser.add_argument("--warmup_steps", type=int, default=1000)
     parser.add_argument("--weight_decay", type=float, default=0.01)

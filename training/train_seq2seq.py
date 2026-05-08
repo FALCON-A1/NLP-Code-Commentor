@@ -110,7 +110,7 @@ def main():
     parser.add_argument("--train_data", type=str, default="data/processed/train.json")
     parser.add_argument("--val_data", type=str, default="data/processed/validation.json")
     parser.add_argument("--epochs", type=int, default=30)
-    parser.add_argument("--batch_size", type=int, default=256)
+    parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--hidden_dim", type=int, default=512)
     parser.add_argument("--embed_dim", type=int, default=512)
