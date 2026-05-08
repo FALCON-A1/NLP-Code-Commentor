@@ -100,7 +100,7 @@ def main():
         logger.info(f"Found {n_gpus} GPU(s):")
         for i in range(n_gpus):
             name = torch.cuda.get_device_name(i)
-            mem = torch.cuda.get_device_properties(i).total_mem / 1024**3
+            mem = torch.cuda.get_device_properties(i).total_memory / 1024**3
             logger.info(f"  GPU {i}: {name} ({mem:.1f} GB)")
     else:
         logger.info("No GPU found, using CPU")
