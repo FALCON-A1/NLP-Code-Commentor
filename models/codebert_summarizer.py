@@ -1,9 +1,14 @@
 """
-CodeBERT Summarizer Model (Model 1)
-====================================
+CodeBERT Summarizer Model (Model 1) — v2.0
+============================================
 Fine-tunes Microsoft's CodeBERT for code summarization.
-This is the primary deep learning model for the project.
-Uses an Encoder-Decoder architecture with CodeBERT as encoder.
+Uses an Encoder-Decoder architecture with CodeBERT as encoder
+and a randomly initialized Transformer decoder.
+
+v2.0 Changes:
+- Fixed EncoderDecoderModel construction for new transformers API
+- Load encoder/decoder separately, combine with EncoderDecoderModel()
+- Added version logging to verify correct file is loaded
 """
 
 import torch
@@ -13,6 +18,10 @@ from typing import Dict, Optional, Tuple
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Version tag — if you see this in Kaggle logs, the correct file is loaded
+CODEBERT_MODEL_VERSION = "2.0"
+logger.info(f"=== CodeBERT Summarizer v{CODEBERT_MODEL_VERSION} loaded ===")
 
 try:
     from transformers import (
@@ -55,14 +64,23 @@ class CodeBERTSummarizer(nn.Module):
         self.max_target_length = max_target_length
         self.beam_size = beam_size
 
-        logger.info(f"Loading CodeBERT from {self.MODEL_NAME}...")
+        logger.info(f"[v{CODEBERT_MODEL_VERSION}] Loading CodeBERT from {self.MODEL_NAME}...")
 
         # Load tokenizer
         self.tokenizer = RobertaTokenizer.from_pretrained(self.MODEL_NAME)
 
-        # Build Encoder-Decoder model
-        # Encoder: CodeBERT (pre-trained)
-        # Decoder: Randomly initialized RoBERTa-style decoder
+        # ============================================================
+        # v2.0 FIX: Build encoder and decoder SEPARATELY, then combine.
+        # Old API (broken): EncoderDecoderModel.from_encoder_decoder_pretrained()
+        # New API (works):  EncoderDecoderModel(encoder=..., decoder=...)
+        # ============================================================
+
+        # Step 1: Load pre-trained CodeBERT as encoder
+        logger.info(f"[v{CODEBERT_MODEL_VERSION}] Loading pre-trained encoder...")
+        encoder = RobertaModel.from_pretrained(self.MODEL_NAME)
+
+        # Step 2: Create fresh decoder with cross-attention
+        logger.info(f"[v{CODEBERT_MODEL_VERSION}] Creating decoder with {decoder_layers} layers...")
         decoder_config = RobertaConfig(
             vocab_size=self.tokenizer.vocab_size,
             num_hidden_layers=decoder_layers,
@@ -72,15 +90,11 @@ class CodeBERTSummarizer(nn.Module):
             is_decoder=True,
             add_cross_attention=True,
         )
+        decoder = RobertaModel(decoder_config)
 
-        self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
-            self.MODEL_NAME,
-            decoder_model=None,
-        )
-
-        # Configure decoder from scratch with cross-attention
-        self.model.config.decoder = decoder_config
-        self.model.decoder = RobertaModel(decoder_config)
+        # Step 3: Combine into Encoder-Decoder model
+        logger.info(f"[v{CODEBERT_MODEL_VERSION}] Combining encoder + decoder...")
+        self.model = EncoderDecoderModel(encoder=encoder, decoder=decoder)
 
         # Set generation config
         self.model.config.decoder_start_token_id = self.tokenizer.cls_token_id
@@ -94,7 +108,7 @@ class CodeBERTSummarizer(nn.Module):
 
         total_params = sum(p.numel() for p in self.parameters())
         trainable = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        logger.info(f"CodeBERT Summarizer: {total_params:,} total, {trainable:,} trainable")
+        logger.info(f"[v{CODEBERT_MODEL_VERSION}] CodeBERT Summarizer: {total_params:,} total, {trainable:,} trainable")
 
     def _freeze_encoder_layers(self, n_layers: int):
         """Freeze the first n encoder layers."""
