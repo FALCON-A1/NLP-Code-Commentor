@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Version tag — if you see this in Kaggle logs, the correct file is loaded
-CODEBERT_MODEL_VERSION = "2.0"
+CODEBERT_MODEL_VERSION = "2.1"
 logger.info(f"=== CodeBERT Summarizer v{CODEBERT_MODEL_VERSION} loaded ===")
 
 try:
@@ -28,6 +28,7 @@ try:
         RobertaTokenizer,
         RobertaModel,
         RobertaConfig,
+        RobertaForCausalLM,
         EncoderDecoderModel,
         EncoderDecoderConfig,
     )
@@ -90,7 +91,7 @@ class CodeBERTSummarizer(nn.Module):
             is_decoder=True,
             add_cross_attention=True,
         )
-        decoder = RobertaModel(decoder_config)
+        decoder = RobertaForCausalLM(decoder_config)
 
         # Step 3: Combine into Encoder-Decoder model
         logger.info(f"[v{CODEBERT_MODEL_VERSION}] Combining encoder + decoder...")
