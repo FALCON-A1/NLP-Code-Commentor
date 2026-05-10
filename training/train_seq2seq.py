@@ -48,8 +48,8 @@ def build_vocabularies(train_path: str, min_freq: int = 2):
     src_tokens = [code_tokenizer.tokenize_code(d["code"]) for d in data]
     tgt_tokens = [text_prep.tokenize_text(d["docstring"]) for d in data]
 
-    src_vocab = Vocabulary(min_freq=min_freq, max_size=50000)
-    tgt_vocab = Vocabulary(min_freq=min_freq, max_size=30000)
+    src_vocab = Vocabulary(min_freq=min_freq, max_size=35000)
+    tgt_vocab = Vocabulary(min_freq=min_freq, max_size=20000)
     src_vocab.build_vocab(src_tokens)
     tgt_vocab.build_vocab(tgt_tokens)
 
@@ -113,8 +113,8 @@ def main():
     parser.add_argument("--train_data", type=str, default="data/processed/train.json")
     parser.add_argument("--val_data", type=str, default="data/processed/validation.json")
     parser.add_argument("--epochs", type=int, default=30)
-    parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--grad_accum", type=int, default=8)
+    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--grad_accum", type=int, default=16)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--hidden_dim", type=int, default=512)
     parser.add_argument("--embed_dim", type=int, default=512)
